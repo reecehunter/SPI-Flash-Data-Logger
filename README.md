@@ -24,7 +24,7 @@ Firmware is implemented as a deterministic wake-log-sleep cycle.
 
 Current repository status:
 
-- SPI initialization and JEDEC ID read path are implemented in [`/Users/reece/Documents/code/arduino/spi-flash-data-logger/spi-flash-data-logger.ino`](/Users/reece/Documents/code/arduino/spi-flash-data-logger/spi-flash-data-logger.ino).
+- SPI initialization and JEDEC ID read path are implemented in [`/spi-flash-data-logger.ino`](/spi-flash-data-logger.ino).
 - Full logging state machine and low-power loop are planned next.
 
 ## Power Budget
@@ -41,4 +41,3 @@ Current repository status:
 ## Results
 
 The logger demonstrates full-stack embedded execution: hardware interface design, persistent storage firmware, low-power control, and instrumentation-led debug decisions.
-# SPI-Flash-Data-Logger
