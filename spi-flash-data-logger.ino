@@ -38,11 +38,22 @@ void setup() {
   SPI.endTransaction();
 
   // Tests
-  writeEnable();
+  uint8_t w[4] = {1,2,3,4};
+  uint8_t r[4] = {0};
+
   sectorErase(0x000000);
-  uint8_t status = readStatus();
-  Serial.print("Status: 0x");
-  Serial.println(status, HEX);
+
+  readData(0x000000, r, 4);
+  Serial.print("After erase: ");
+  for (uint8_t i = 0; i < 4; i++) { Serial.print(r[i], HEX); Serial.print(" "); }
+  Serial.println();
+
+  pageProgram(0x000000, w, 4);
+
+  readData(0x000000, r, 4);
+  Serial.print("After program: ");
+  for (uint8_t i = 0; i < 4; i++) { Serial.print(r[i], HEX); Serial.print(" "); }
+  Serial.println();
 }
 
 void loop() {}
@@ -100,10 +111,10 @@ void sectorErase(uint32_t address) {
  * - SR1 read command: 0x05
  */
 uint8_t readStatus() {
-  digitalWrite(CS_PIN, LOW);    // Select flash (CS low)
-  SPI.transfer(0x05);           // Read Status Register-1 (05h)
-  uint8_t status = SPI.transfer(0x00); // Clock out SR1
-  digitalWrite(CS_PIN, HIGH);   // Deselect flash (CS high)
+  digitalWrite(CS_PIN, LOW);            // Select flash (CS low)
+  SPI.transfer(0x05);                   // Read Status Register-1 (05h)
+  uint8_t status = SPI.transfer(0x00);  // Clock out SR1
+  digitalWrite(CS_PIN, HIGH);           // Deselect flash (CS high)
   return status;
 }
 
@@ -117,4 +128,62 @@ void waitUntilReady() {
   while (readStatus() & 0x01) {
     delay(1);
   }
+}
+
+/**
+ * @brief Programs 1–256 bytes into a flash page starting at the given address.
+ *
+ * @param address 24-bit start address to program (page-aligned region should be pre-erased).
+ * @param data    Pointer to the data buffer to write.
+ * @param len     Number of bytes to program (1–256).
+ *
+ * Requirements:
+ * - Target region should be erased before programming.
+ * - This command uses PAGE PROGRAM (0x02) and must not rely on crossing page boundaries;
+ *   if the address + length exceeds the page, the device wraps within the page.
+ */
+void pageProgram(uint32_t address, const uint8_t* data, uint16_t len) {
+  writeEnable();
+  digitalWrite(CS_PIN, LOW);
+  SPI.transfer(0x02);
+
+  SPI.transfer((address >> 16) & 0xFF);
+  SPI.transfer((address >> 8) & 0xFF);
+  SPI.transfer(address & 0xFF);
+
+  // Send data to memory byte by byte
+  for(uint16_t i = 0; i < len; i++) {
+    SPI.transfer(data[i]);  // i-th byte from array
+  }
+
+  digitalWrite(CS_PIN, HIGH);
+
+  waitUntilReady();
+}
+
+/**
+ * @brief Reads a sequence of bytes from flash into a caller-provided buffer.
+ *
+ * @param address 24-bit start address to read from.
+ * @param buffer  Destination buffer to fill with data.
+ * @param len     Number of bytes to read.
+ *
+ * Notes:
+ * - Uses READ DATA (0x03).
+ * - If issued while an erase/program/write cycle is in progress (BUSY=1), the read command
+ *   is ignored by the device and has no effect on the current operation.
+ */
+void readData(uint32_t address, uint8_t* buffer, uint16_t len) {
+  digitalWrite(CS_PIN, LOW);
+  SPI.transfer(0x03);
+
+  SPI.transfer((address >> 16) & 0xFF);
+  SPI.transfer((address >> 8) & 0xFF);
+  SPI.transfer(address & 0xFF);
+
+  for(uint16_t i = 0; i < len; i++) {
+    buffer[i] = SPI.transfer(0x00);
+  }
+
+  digitalWrite(CS_PIN, HIGH);
 }
